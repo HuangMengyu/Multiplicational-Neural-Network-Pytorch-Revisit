@@ -24,17 +24,17 @@ from network import MNN
 # elif args.dataset.equal('oulu_casia'):
 #    data_dir = 'new_pkl/oulu_casia.pkl'
 
-data_dir = 'new_pkl/ckp_6.pkl'
+data_dir = 'preprocess_pkl/ckp_6.pkl'
 
 # ten-fold validation
 num_fold = 10
-learning_rate = 0.001
-num_epoch = 100
+learning_rate = 0.0001
+num_epoch = 40
 
 mnn = MNN(height=32, width=32, input_channel=40, classes=6)
 params = mnn.parameters()
 criterion = nn.CrossEntropyLoss()
-optimizer = optim.Adam(mnn.parameters(), lr=0.001)
+optimizer = optim.Adam(mnn.parameters(), lr=learning_rate)
 
 for i in range(num_fold):
     print ('current fold: %d' % (i))
@@ -46,6 +46,7 @@ for i in range(num_fold):
     testloader = torch.utils.data.DataLoader(test_dataset, batch_size=1,
                                               shuffle=False, num_workers=0)
 
+    #Training
     for epoch in range(num_epoch):
         print('start training epoch : %d' %(epoch))
         running_loss = 0.0
@@ -58,9 +59,6 @@ for i in range(num_fold):
             optimizer.zero_grad()
             # forward + backward + optimize
             outputs = mnn(inputs)
-            #outputs, _ = outputs.max(dim=1)
-            #outputs = torch.squeeze(outputs)
-            #print('final outputs', outputs.shape)
             loss = criterion(outputs, labels)
             loss.backward()
             optimizer.step()
@@ -73,20 +71,21 @@ for i in range(num_fold):
 
         print('epoch: %d, loss: %.3f' %
                     (epoch + 1, running_loss /num_batch ))
-    print('Finished Training')
 
-    correct = 0
-    total = 0
-    with torch.no_grad():
-        print('Begin testing')
-        for data in testloader:
-            inputs = data['image']
-            labels = torch.tensor(data['label'], dtype=torch.long)
-            outputs = mnn(inputs)
-            _, predicted = torch.max(outputs.data, 1)
-            total += labels.size(0)
-            correct += (predicted == labels).sum().item()
-    print('Accuracy of the network on the %d-th fold test images: %d %%' % (i, 100 * correct / total))
+        #Validating
+        correct = 0
+        total = 0
+        with torch.no_grad():
+            print('Validating: %d-th fold, epoch %d '% (i, epoch))
+            for data in testloader:
+                inputs = data['image']
+                labels = torch.tensor(data['label'], dtype=torch.long)
+                outputs = mnn(inputs)
+                _, predicted = torch.max(outputs.data, 1)
+                total += labels.size(0)
+                correct += (predicted == labels).sum().item()
+
+            print('Accuracy: %d %%' % (100 * correct / total))
 
 
 
